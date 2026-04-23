@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<!-- saved from url=(0028)https://dajczman.vercel.app/ -->
+<html lang="pl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>350 km dla Cancer Fighters - Live</title>
+<link rel="stylesheet" href="./350 km dla Cancer Fighters - Live_files/leaflet.css">
+<script src="./350 km dla Cancer Fighters - Live_files/leaflet.js.pobrany plik"></script>
+<style>
+  :root {
+    --accent: #c77dff;
+    --accent-2: #ff477e;
+    --accent-3: #ffd166;
+    --bg: #07071a;
+    --panel: rgba(15, 15, 35, 0.72);
+    --border: rgba(255, 255, 255, 0.09);
+    --text: #f4f4ff;
+    --muted: #9a9ab8;
+    --good: #3de07a;
+    --bad: #ff4b5c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif;
+    overflow: hidden; -webkit-font-smoothing: antialiased; }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background:
+      radial-gradient(ellipse at top left, rgba(199, 125, 255, 0.18), transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(255, 71, 126, 0.18), transparent 50%);
+  }
+  #map { position: absolute; inset: 0; z-index: 0; }
+  .leaflet-container { background: #0a0a1f; }
+
+  .panel {
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  #header {
+    position: absolute; top: 16px; left: 16px; z-index: 1000;
+    max-width: 400px; padding: 14px 18px;
+    animation: slideIn .7s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  #header .title-row { display: flex; align-items: center; gap: 10px; }
+  #header .ribbon {
+    width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-radius: 10px; font-size: 16px; box-shadow: 0 6px 18px rgba(255,71,126,.4);
+    animation: float 3s ease-in-out infinite;
+  }
+  #header h1 {
+    margin: 0; font-size: 17px; font-weight: 800; letter-spacing: .2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    background-size: 200% 100%; animation: shimmerText 6s linear infinite;
+  }
+  #header p { margin: 4px 0 0 38px; font-size: 12px; color: var(--muted); }
+  .progress-row { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+  .progress-bar { flex: 1; height: 12px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; position: relative; border: 1px solid var(--border); }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 60%, var(--accent-3) 100%); border-radius: 999px; box-shadow: 0 0 20px rgba(255, 71, 126, .6); transition: width 1.4s cubic-bezier(.2,.9,.3,1); position: relative; }
+  .progress-fill::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: shimmer 2.4s infinite; }
+  .progress-val { font-weight: 800; font-size: 13px; min-width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
+  .progress-val small { color: var(--muted); font-weight: 500; }
+
+  #status { position: absolute; top: 16px; right: 16px; z-index: 1000; display: flex; align-items: center; gap: 10px; padding: 8px 14px; font-size: 12px; animation: slideInR .7s cubic-bezier(.2,.9,.3,1.2) both; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 rgba(61,224,122,.6); animation: pulseDot 1.8s infinite; }
+  .dot.offline { background: var(--bad); animation-name: pulseBad; }
+  .dot.paused { background: var(--accent-3); animation: none; box-shadow: 0 0 14px rgba(255, 209, 102, 0.45); }
+
+  #breakOverlay {
+    position: fixed; inset: 0; z-index: 5000;
+    background: rgba(7, 7, 26, 0.94);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 28px;
+  }
+  #breakOverlay.hidden { display: none; }
+  #breakOverlay .box { max-width: 420px; }
+  #breakOverlay h2 { margin: 0 0 12px; font-size: 22px; font-weight: 800; color: var(--accent-3); }
+  #breakOverlay p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+  #stats { position: absolute; bottom: 16px; left: 16px; z-index: 1000; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; min-width: 340px; animation: slideUp .8s cubic-bezier(.2,.9,.3,1.2) both; }
+  .stat { padding: 12px 16px; }
+  .stat .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted); font-weight: 600; }
+  .stat .value { font-size: 24px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat .unit { font-size: 11px; color: var(--muted); margin-left: 4px; font-weight: 500; }
+  .value.flash { animation: flash .8s; }
+
+  #side { position: absolute; bottom: 16px; right: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; animation: slideUp .8s cubic-bezier(.2,.9,.3,1.2) both; }
+  .chip { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 12px; }
+  .chip strong { font-variant-numeric: tabular-nums; color: #fff; }
+
+  #donate {
+    position: absolute; top: 64px; right: 16px; z-index: 1000;
+    width: 196px; padding: 14px 12px 12px; text-align: center;
+    border: 1px solid rgba(199, 125, 255, 0.25);
+    background: linear-gradient(165deg, rgba(20, 18, 45, 0.88) 0%, rgba(12, 12, 32, 0.92) 100%);
+    animation: slideInR .75s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  #donate .donate-ribbon {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent-3); margin-bottom: 8px;
+  }
+  #donate .donate-ribbon::before { content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 10px rgba(255, 71, 126, 0.5);
+  }
+  #donate h2 {
+    margin: 0 0 10px; font-size: 15px; font-weight: 800; line-height: 1.25;
+    color: #fff; letter-spacing: -0.02em;
+  }
+  #donate .donate-cta {
+    display: block; text-align: center; text-decoration: none;
+    margin: 0 0 12px; padding: 11px 12px; border-radius: 12px; font-size: 12px; font-weight: 800;
+    color: #fff; letter-spacing: 0.02em; line-height: 1.3;
+    background: linear-gradient(135deg, #e85d8a, var(--accent-2) 45%, #b5179e);
+    box-shadow: 0 6px 22px rgba(255, 71, 126, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  #donate .donate-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(255, 71, 126, 0.48); color: #fff; }
+  #donate .donate-cta small { display: block; margin-top: 4px; font-size: 10px; font-weight: 600; opacity: 0.9; }
+  #donate .donate-hint { margin: 0 0 12px; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+  #donate .donate-hint kbd { font-size: 10.5px; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,.1); color: #e8e8ff; font-family: inherit; }
+  #donate .nick {
+    display: block; margin-top: 6px; padding: 8px 10px; border-radius: 10px; cursor: pointer; user-select: all;
+    font-size: 15px; font-weight: 800; letter-spacing: 0.2em; color: var(--bg);
+    background: linear-gradient(120deg, var(--accent-3), #ffc857);
+    box-shadow: 0 4px 20px rgba(255, 209, 102, 0.3);
+    transition: transform .15s, box-shadow .15s;
+  }
+  #donate .nick:hover { transform: scale(1.02); box-shadow: 0 6px 24px rgba(255, 209, 102, 0.45); }
+  #donate .nick-copied { letter-spacing: 0.1em; font-size: 12px; }
+
+  #donate .donate-toggle {
+    display: flex; align-items: center; justify-content: flex-start; gap: 6px; width: 100%;
+    margin: 0; padding: 0 0 10px; border: none; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: none; color: #fff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; text-align: left;
+  }
+  #donate .donate-toggle .chev { flex-shrink: 0; width: 1.1em; text-align: center; opacity: 0.9; }
+  #donate .donate-body { display: block; }
+  #donate.collapsed .donate-body { display: none; }
+  #donate.collapsed { padding: 8px 10px; width: auto; min-width: 0; }
+  #donate.collapsed .donate-toggle { padding: 0; border: none; }
+
+  .bike-marker { position: relative; width: 48px; height: 48px; transform: translate(-50%, -50%); }
+  .bike-pulse { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255,71,126,.55), rgba(255,71,126,0) 70%); animation: pulseRing 2s infinite; }
+  .bike-pulse.p2 { animation-delay: 1s; }
+  .bike-core { position: absolute; inset: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,71,126,.75), inset 0 0 10px rgba(0,0,0,.25); border: 2px solid #fff; }
+  .bike-core span { font-size: 18px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+
+  .leaflet-control-attribution { background: rgba(0,0,0,.5) !important; color: #999 !important; font-size: 10px; backdrop-filter: blur(8px); }
+  .leaflet-control-attribution a { color: #bbb !important; }
+  .leaflet-control-zoom a { background: var(--panel) !important; color: var(--text) !important; border: 1px solid var(--border) !important; backdrop-filter: blur(10px); }
+  .leaflet-control-zoom a:hover { background: rgba(199, 125, 255, 0.25) !important; }
+
+  #waiting { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 900; padding: 18px 26px; max-width: 440px; text-align: center; border: 1px solid rgba(255,209,102,.35); box-shadow: 0 0 60px rgba(255, 209, 102, 0.25); }
+  #waiting h2 { margin: 0 0 8px; font-size: 16px; color: var(--accent-3); }
+  #waiting p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  #waiting.hidden { display: none; }
+
+  @keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(61,224,122,.6); } 70% { box-shadow: 0 0 0 12px rgba(61,224,122,0); } 100% { box-shadow: 0 0 0 0 rgba(61,224,122,0); } }
+  @keyframes pulseBad { 0% { box-shadow: 0 0 0 0 rgba(255,75,92,.6); } 70% { box-shadow: 0 0 0 12px rgba(255,75,92,0); } 100% { box-shadow: 0 0 0 0 rgba(255,75,92,0); } }
+  @keyframes pulseRing { 0% { transform: scale(.55); opacity: 1; } 100% { transform: scale(2.1); opacity: 0; } }
+  @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  @keyframes shimmerText { 0% { background-position: 0% 0%; } 100% { background-position: 200% 0%; } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes slideInR { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  @keyframes flash { 0%, 100% { color: var(--text); text-shadow: none; } 50% { color: var(--accent-3); text-shadow: 0 0 20px var(--accent-3); } }
+
+  @media (max-width: 720px) {
+    #header { max-width: calc(100% - 200px); }
+    #donate { max-width: min(152px, 42vw); top: 58px; right: 8px; padding: 10px 8px; }
+    #donate.collapsed { max-width: none; }
+    #donate h2 { font-size: 13px; }
+    #donate .nick { font-size: 13px; letter-spacing: 0.12em; padding: 6px 8px; }
+    #stats { min-width: unset; right: 16px; grid-template-columns: 1fr 1fr; }
+    #side { display: none; }
+    #waiting { max-width: calc(100% - 32px); }
+  }
+</style>
+<style type="text/css">:root img[width="728"][height="90"], :root [href="https://adstub.net/cina777/"], :root [href="https://adstub.net/arab777/"], :root [href="https://adstub.net/ratu89/"], :root [href="https://adstub.net/judi89/"], :root [href^="//mage98rquewz.com/"], :root [href^="//x4pollyxxpush.com/"], :root span[id^="ezoic-pub-ad-placeholder-"], :root ins.adsbygoogle[data-ad-slot], :root ins.adsbygoogle[data-ad-client], :root img[src^="https://s-img.adskeeper.com/"], :root guj-ad, :root gpt-ad, :root div[ow-ad-unit-wrapper], :root div[id^="zergnet-widget"], :root div[id^="vuukle-ad-"], :root div[id^="taboola-stream-"], :root div[id^="sticky_ad_"], :root div[id^="st"][style^="z-index: 999999999;"], :root div[id^="rc-widget-"], :root div[id^="mrec-leaderboard-"], :root div[id^="gpt_ad_"], :root div[id^="ezoic-pub-ad-"], :root div[id^="dfp-ad-"], :root div[id^="crt-"][style], :root div[id^="apn_native_ad_slot_"], :root div[id^="adspot-"], :root div[id^="adrotate_widgets-"], :root ps-connatix-module, :root div[id^="ad_position_"], :root div[id^="ad-div-"], :root div[id*="ScriptRoot"], :root div[id*="MarketGid"], :root [href="https://adstub.net/rusia777/"], :root div[data-id-advertdfpconf], :root div[data-dfp-id], :root hl-adsense, :root div[data-contentexchange-widget], :root div[data-alias="300x250 Ad 2"], :root div[data-adunit-path], :root div[data-adname], :root div[data-ad-placeholder], :root a[href^="https://osfultrbriolenai.info/"], :root div[class^="Adstyled__AdWrapper-"], :root a[href^="https://go.xlviiirdr.com"], :root div[class$="-adlabel"], :root display-ads, :root a[href^="https://go.grinsbest.com/"], :root citrus-ad-wrapper, :root a[href^="https://s.zlinkd.com/"], :root bottomadblock, :root amp-fx-flying-carpet, :root amp-embed[type="taboola"], :root amp-connatix-player, :root div[id^="google_dfp_"], :root ad-slot, :root a[href^="https://www.purevpn.com/"][href*="&utm_source=aff-"], :root a[href^="https://www.privateinternetaccess.com/"] > img, :root a[href^="https://www.onlineusershielder.com/"], :root a[href^="https://financeads.net/tc.php?"], :root a[href^="https://www.mrskin.com/tour"], :root a[href^="https://www.infowarsstore.com/"] > img, :root a[href^="https://ak.psaltauw.net/"], :root broadstreet-zone-container, :root a[href^="https://www.highperformancecpmgate.com/"], :root amp-ad, :root a[href^="https://www.highcpmrevenuenetwork.com/"], :root a[href^="https://www.get-express-vpn.com/offer/"], :root a[href^="https://lnkxt.bannerator.com/"], :root a[href^="https://www.geekbuying.com/dynamic-ads/"], :root [href^="https://groorsoa.net/"], :root a[href^="https://www.financeads.net/tc.php?"], :root a[href^="https://www.effectiveratecpm.com/"], :root [href^="https://www.herbanomic.com/"] > img, :root a[href^="https://www.dql2clk.com/"], :root a[href^="https://www.nutaku.net/signup/landing/"], :root a[href^="https://www.dating-finder.com/signup/?ai_d="], :root a[href^="https://explore-site.com/"], :root a[href^="https://www.brazzersnetwork.com/landing/"], :root [data-template-type="nativead"], :root a[href^="https://www.adultempire.com/"][href*="?partner_id="], :root a[href^="https://voluum.prom-xcams.com/"], :root a[href^="https://twinrdsyte.com/"], :root a[href^="https://twinrdsrv.com/"], :root a[href^="https://syndicate.contentsserved.com/"], :root div[data-alias="300x250 Ad 1"], :root a[href^="https://trk.nfl-online-streams.club/"], :root a[href^="https://tracking.avapartner.com/"], :root a[href^="https://track.wg-aff.com"], :root a[href^="https://track.ultravpn.com/"], :root a[href^="https://track.afcpatrk.com/"], :root a[href^="https://track.adform.net/"], :root a[href^="https://torguard.net/aff.php"] > img, :root [data-identity="adhesive-ad"], :root a[href^="https://tc.tradetracker.net/"] > img, :root a[href^="https://tatrck.com/"], :root [href^="https://zstacklife.com/"] img, :root a[href^="https://click.candyoffers.com/"], :root a[href^="https://t.aslnk.link/"], :root a[onmousedown^="this.href='https://paid.outbrain.com/network/redir?"], :root a[href^="https://t.ajump1.com/"], :root a[href^="https://t.adating.link/"], :root a[href^="https://go.trackitalltheway.com/"], :root [href^="https://track.fiverr.com/visit/"] > img, :root a[href^="https://syndication.exoclick.com/"], :root a[href^="https://syndication.dynsrvtbg.com/"], :root .gnt_em_vp_c[data-g-s="vp_dk"], :root div[data-ad-wrapper], :root a[href^="https://svb-analytics.trackerrr.com/"], :root a[onmousedown^="this.href='https://paid.outbrain.com/network/redir?"] + .ob_source, :root a[href^="http://www.iyalc.com/"], :root a[href^="https://claring-loccelkin.com/"], :root a[href^="https://stardomcoit.com/"], :root a[href^="https://track.aftrk5.com/"], :root a[href^="https://slkmis.com/"], :root a[href^="https://myclick-2.com/"], :root a[href^="https://sexynearme.com/"], :root [data-ad-manager-id], :root a[href^="https://s.zlinkr.com/"], :root [href="https://adstub.net/gaza88/"], :root a[href^="https://ad.doubleclick.net/"], :root a[href^="https://static.fleshlight.com/images/banners/"], :root a[href^="https://s.zlink7.com/"], :root a[href^="https://s.ma3ion.com/"], :root a[href^="https://s.eunow4u.com/"], :root a[href^="https://random-affiliate.atimaze.com/"], :root #kt_player > div[style$="display: block;"][style*="inset: 0px;"], :root [href$="/sexdating.php"], :root a[href^="https://quotationfirearmrevision.com/"], :root a[href^="https://pubads.g.doubleclick.net/"], :root a[href^="https://prf.hn/click/"][href*="/camref:"] > img, :root a[href^="https://serve.awmdelivery.com/"], :root a[href^="https://www.dating-finder.com/?ai_d="], :root a[href^="https://prf.hn/click/"][href*="/adref:"] > img, :root [href^="https://ap.octopuspop.com/click/"] > img, :root app-ad, :root a[href^="https://postback1win.com/"], :root a[href^="https://a.adtng.com/"], :root a[href^="https://playnano.online/offerwalls/?ref="], :root a[href^="https://mmwebhandler.aff-online.com/"], :root a[href^="https://www.bet365.com/"][href*="affiliate="], :root a[href^="https://pb-track.com/"], :root a[href^="https://pb-front.com/"], :root a[href^="https://paid.outbrain.com/network/redir?"], :root a[href^="https://streamate.com/landing/click/"], :root a[href^="https://upsups.click/"], :root a[href^="https://ndt5.net/"], :root a[href^="https://natour.naughtyamerica.com/track/"], :root a[href^="https://mediaserver.entainpartners.com/renderBanner.do?"], :root [data-ad-name], :root a[href^="https://loboclick.com/"], :root a[href^="https://lead1.pl/"], :root a[href^="https://landing.brazzersnetwork.com/"], :root a[href^="https://juicyads.in/"], :root a[href^="https://snowdayonline.xyz/"], :root a[href^="https://join.dreamsexworld.com/"], :root a[href^="https://join.bannedsextapes.com/track/"], :root a[href^="https://jaxofuna.com/"], :root a[href^="https://italarizege.xyz/"], :root a[href^="https://identicaldrench.com/"], :root ad-shield-ads, :root a[href^="https://hot-growngames.life/"], :root a[href^="https://helmethomicidal.com/"], :root display-ad-component, :root a[href^="https://golinks.work/"], :root a[href^="https://s.zlinkn.com/"], :root a[href^="https://go.xxxvjmp.com/"], :root a[href^="https://go.xxxjmp.com"], :root a[href^="https://zirdough.net/"], :root [class^="tile-picker__CitrusBannerContainer-sc-"], :root a[href^="https://go.xxxiijmp.com"], :root a[href^="https://go.xtbaffiliates.com/"], :root [data-role="tile-ads-module"], :root a[href^="https://go.xlviirdr.com"], :root a[href^="https://go.xlivrdr.com"], :root a[href^="https://ismlks.com/"], :root [href^="https://www.mypillow.com/"] > img, :root a[href^="https://go.xlirdr.com"], :root [data-css-class="dfp-inarticle"], :root a[href^="https://go.tmrjmp.com"], :root a[href^="https://go.markets.com/visit/?bta="], :root a[href^="https://billing.purevpn.com/aff.php"] > img, :root a[href^="https://go.hpyrdr.com/"], :root a[href^="https://lijavaxa.com/"], :root a[href^="https://go.goaserv.com/"], :root app-large-ad, :root [href^="https://turtlebids.irauctions.com/"] img, :root div[data-adunit], :root a[href^="https://go.etoro.com/"] > img, :root a[href^="https://go.dmzjmp.com"], :root a[href^="https://www.bang.com/?aff="], :root #mgb-container > #mgb, :root a[href^="https://go.admjmp.com"], :root a[href^="https://get.surfshark.net/aff_c?"][href*="&aff_id="] > img, :root a[href^="https://datewhisper.life/"], :root a[href^="https://click.linksynergy.com/fs-bin/"] > img, :root a[href^="https://get-link.xyz/"], :root a[href^="https://www.mrskin.com/account/"], :root a[href^="https://www.adskeeper.com"], :root a[data-redirect^="https://paid.outbrain.com/network/redir?"], :root [href^="https://clicks.affstrack.com/"] > img, :root a[href^="https://engine.phn.doublepimp.com/"], :root a[href^="https://dl-protect.net/"], :root a[href*=".foxqck.com/"], :root a[href^="https://ctosrd.com/"], :root a[href^="https://go.bushheel.com/"], :root a[href^="https://ctjdwm.com/"], :root [href="//sexcams.plus/"], :root a[href^="https://camfapr.com/landing/click/"], :root a[href^="https://prf.hn/click/"][href*="/creativeref:"] > img, :root a[href*="&maxads="], :root a[href^="http://www.adultempire.com/unlimited/promo?"][href*="&partner_id="], :root a[href^="https://1betandgonow.com/"], :root a[href^="https://chaturbate.com/in/?"], :root a[href^="https://t.ajrkm1.com/"], :root a[href^="https://bongacams10.com/track?"], :root a[href*=".g2afse.com/"], :root a[href^="https://bodelen.com/"], :root a[href^="//hoodingluster.com/"], :root a[href^="https://black77854.com/"], :root a[href^="https://getmatchedlocally.com/"], :root app-advertisement, :root a[href^="https://rixofa.com/"], :root a[href^="https://best-experience-cool.com/"], :root [data-taboola-options], :root a[href^="https://believessway.com/"], :root a[href^="https://Click.ggpickaff.com/"], :root a[href^="https://banners.livepartners.com/"], :root a[href^="http://revolvemockerycopper.com/"], :root a[href^="https://awptjmp.com/"], :root a[href^="https://join.sexworld3d.com/track/"], :root a[href^="https://aweptjmp.com/"], :root a[href^="https://ausoafab.net/"], :root a[href^="https://clicks.pipaffiliates.com/"], :root a[href^="https://aj1070.online/"], :root a[href^="https://a.bestcontentoperation.top/"], :root a[href^="https://adultfriendfinder.com/go/"], :root a[href^="https://ads.planetwin365affiliate.com/"], :root a[href^="https://ads.leovegas.com/"], :root a[href^="https://go.xlvirdr.com"], :root img[src^="https://images.purevpnaffiliates.com"], :root a[href^="https://porntubemate.com/"], :root a[href^="https://click.dtiserv2.com/"], :root a[href^="https://clickadilla.com/"], :root a[href^="https://a.medfoodhome.com/"], :root a[href^="https://cam4com.go2cloud.org/"], :root .nya-slot[style], :root a[href^="https://a.bestcontentweb.top/"], :root atf-ad-slot, :root a[href^="https://a2.adform.net/"], :root a[href^="https://a.candyai.love/"], :root .banner-img > .pbl, :root [data-m-ad-id], :root a[href^="https://a-ads.com/"], :root a[href^="https://1winpb.com/"], :root div[id^="optidigital-adslot"], :root [href^="https://wsup.ai/"], :root a[href^="https://123-stream.org/"], :root a[href^="https://in.rabbtrk.com/"], :root a[href^="http://www.h4trck.com/"], :root [href^="https://a.acebet.com/api/click?"], :root a[href^="http://www.friendlyduck.com/AF_"], :root a[href^="http://partners.etoro.com/"], :root [href="https://chaturbate.jjgirls.com/"] > img, :root a[href^="http://cam4com.go2cloud.org/aff_c?"], :root a[href^="https://ads.betfair.com/redirect.aspx?"], :root amp-ad-custom, :root a[href^="http://trk.globwo.online/"], :root a[onclick^="window.location.replace('https://random-affiliate.atimaze.com/"], :root a[href^="https://bongacams2.com/track?"], :root a-ad, :root a[href^="https://offhandpump.com/"], :root a[href^="http://stickingrepute.com/"], :root #slashboxes > .deals-rail, :root div[aria-label="Ads"], :root [href^="http://mypillow.com/"] > img, :root a[href^="http://bongacams.com/track?"], :root a[href^="//startgaming.net/tienda/" i], :root a[href^="https://a.medfoodsafety.com/"], :root a[href^="//go.eabids.com/"], :root a[href^=" https://www.friendlyduck.com/AF_"], :root [data-cl-spot-id], :root a[href*="/jump/next.php?r="], :root a[href^="https://go.nordvpn.net/aff"] > img, :root .\[\&_\.gdprAdTransparencyCogWheelButton\]\:\!pjra-z-\[5\], :root [href^="http://clicks.totemcash.com/"], :root a[href^="https://ad.zanox.com/ppc/"] > img, :root [data-d-ad-id], :root a[href*=".engine.adglare.net/"], :root div[id^="lazyad-"], :root a[href^="http://com-1.pro/"], :root [href^="https://www.profitablegatecpm.com/"], :root a[href*=".cfm?domain="][href*="&fp="], :root a[href^="https://ab.advertiserurl.com/aff/"], :root a[data-oburl^="https://paid.outbrain.com/network/redir?"], :root [id^="section-ad-banner"], :root [id^="ad_slider"], :root a[href^="https://www.goldenfrog.com/vyprvpn?offer_id="][href*="&aff_id="], :root a[href^="https://wmctjd.com/"], :root a[href*="//jjgirls.com/sex/Chaturbate"], :root [id^="ad-wrap-"], :root [href^="https://zone.gotrackier.com/"], :root a[href^="http://sarcasmadvisor.com/"], :root [href^="https://www.restoro.com/"], :root a[href^="https://track.totalav.com/"], :root a[href^="https://ctrdwm.com/"], :root [href^="https://www.targetingpartner.com/"], :root a[href^="https://join.virtuallust3d.com/"], :root .section-subheader > .section-hotel-prices-header, :root [href^="https://www.hostg.xyz/"] > img, :root a[href^="https://bngpt.com/"], :root a[href^="https://www.sheetmusicplus.com/"][href*="?aff_id="], :root a[href^="http://adultfriendfinder.com/go/"], :root a[href^="https://fastestvpn.com/lifetime-special-deal?a_aid="], :root a[href^="https://tour.mrskin.com/"], :root div[id^="ad-position-"], :root a[href^="https://www.toprevenuegate.com/"], :root a[href^="https://bc.game/"], :root a[href^="http://join.brokestraightboys.com/track/"], :root div[id^="div-ads-"], :root [href^="https://rapidgator.net/article/premium/ref/"], :root [href^="https://join.girlsoutwest.com/"], :root a[href^="https://activate-game.com/"], :root .scroll-fixable.rail-right > .deals-rail, :root [data-wpas-zoneid], :root a[href^="https://track.aftrk3.com/"], :root [href^="https://join3.bannedsextapes.com"], :root div[data-adzone], :root div[id^="adngin-"], :root [data-rc-widget], :root span[data-ez-ph-id], :root [href^="https://track.aftrk1.com/"], :root [href^="https://join.playboyplus.com/track/"], :root a[href^="https://go.xxxijmp.com"], :root [href^="https://istlnkcl.com/"], :root a[href^="https://trk.softonixs.xyz/"], :root a[href^="https://iqbroker.com/"][href*="?aff="], :root [href^="https://rpwmct.com/"], :root [href^="https://wct.link/click?"], :root a[href^="https://t.acam.link/"], :root a[href^="https://go.strpjmp.com/"], :root [href^="https://url.totaladblock.com/"], :root a[href^="https://go.rmishe.com/"], :root [href^="https://ilovemyfreedoms.com/landing-"], :root [href="https://adstub.net/indo666/"], :root [href^="https://glersakr.com/"], :root a[href^="https://tm-offers.gamingadult.com/"], :root [href^="https://charmingdatings.life/"], :root [data-id^="div-gpt-ad"], :root a[href^="https://tracker.loropartners.com/"], :root [href^="https://awbbjmp.com/"], :root a[href^="https://www.friendlyduck.com/AF_"], :root [href^="https://ad1.adfarm1.adition.com/"], :root a[href^="https://t.ajrkm3.com/"], :root [href^="https://aads.com/campaigns/"], :root a[href^="https://fc.lc/ref/"], :root a[href^="https://go.bbrdbr.com"], :root a[href^="http://tc.tradetracker.net/"] > img, :root a[href^="https://s.zlink3.com/"], :root a[href^="http://sneakyadministration.com/"], :root [href^="https://www.brighteonstore.com/products/"] img, :root a[href^="https://bngprm.com/"], :root [href^="https://shiftnetwork.infusionsoft.com/go/"] > img, :root [href^="http://www.mypillow.com/"] > img, :root .ob_container .item-container-obpd, :root [id^="div-gpt-ad"], :root [href="https://jdrucker.com/gold"] > img, :root a[href^="https://join.virtualtaboo.com/track/"], :root [id^="ad_sky"], :root [name^="google_ads_iframe"], :root aside[id^="adrotate_widgets-"], :root a[href^="https://www.liquidfire.mobi/"], :root DFP-AD, :root .grid > .container > #aside-promotion, :root [data-type="ad-vertical"], :root [href^="https://go.xlrdr.com"], :root a[href^="https://s.cant3am.com/"], :root [data-testid^="taboola-"], :root [data-testid^="section-AdRowBillboard"], :root a[href^="https://track.1234sd123.com/"], :root zeus-ad, :root [data-testid="prism-ad-wrapper"], :root [href^="https://ad.admitad.com/"], :root [href^="https://mypillow.com/"] > img, :root [data-testid="ad_testID"], :root [data-mobile-ad-id], :root [data-dynamic-ads], :root a[href^="https://gamingadlt.com/?offer="], :root [data-desktop-ad-id], :root a[href^="https://go.rmhfrtnd.com"], :root a[href^="https://pb-imc.com/"], :root a[href^="https://www8.smartadserver.com/"], :root topadblock, :root a[href^="//s.zlinkd.com/"], :root [href^="https://mypatriotsupply.com/"] > img, :root [data-testid="adBanner-wrapper"], :root [href^="https://mylead.global/stl/"] > img, :root a[href*=".adsrv.eacdn.com/"], :root [href^="https://antiagingbed.com/discount/"] > img, :root #teaser1[style^="width:autopx;"], :root [href^="https://www.cloudways.com/en/?id"], :root [data-asg-ins], :root [data-block-type="ad"], :root [data-ad-width], :root a[href^="https://clickins.slixa.com/"], :root [onclick*="content.ad/"], :root a[href^="https://go.cmtaffiliates.com/"], :root [href^="https://optimizedelite.com/"] > img, :root div[data-ad-region], :root AMP-AD, :root [data-ad-cls], :root a[href^="https://www.adxsrve.com/"], :root a[href^="https://click.Ggpickaff.com/"], :root [data-ez-name], :root a[href^="https://go.mnaspm.com/"], :root a[href^="https://service.bv-aff-trx.com/"], :root a[href^="https://6-partner.com/"], :root [class^="s2nPlayer"], :root [href^="https://affiliate.fastcomet.com/"] > img, :root [class^="adDisplay-module"], :root a[href^="https://adclick.g.doubleclick.net/"], :root [data-freestar-ad][id], :root AD-SLOT, :root a[href^="https://combodef.com/"], :root a[href^="https://click.hoolig.app/"], :root a[href^="https://www.googleadservices.com/pagead/aclk?"] > img, :root [data-ad-module], :root a[href^="https://a.bestcontentfood.top/"], :root #kt_player > a[target="_blank"], :root a[href^="https://go.skinstrip.net"][href*="?campaignId="], :root #teaser2[style^="width:autopx;"], :root [data-revive-zoneid], :root a[href^="https://losingoldfry.com/"], :root div[id^="div-gpt-"], :root a[href^="https://gml-grp.com/"], :root .ob_dual_right > .ob_ads_header ~ .odb_div, :root div[data-ad-targeting], :root a[style="width:100%;height:100%;z-index:10000000000000000;position:absolute;top:0;left:0;"], :root [href^="https://www.avantlink.com/click.php"] img, :root [data-testid="commercial-label-taboola"], :root [class^="div-gpt-ad"], :root a[href^="https://traffdaq.com/"], :root #teaser3[style^="width:autopx;"], :root a[href^="https://go.hpyjmp.com"], :root iframe[scrolling="no"][sandbox*="allow-popups allow-modals"][style^="width: 100%; height: 100%; border: none;"], :root [href^="https://mystore.com/"] > img, :root [class^="amp-ad-"], :root a[href^="https://clixtrac.com/"], :root a[href^="https://wittered-mainging.com/"], :root #teaser3[style="width: 100%;text-align: center;display: scroll;position:fixed;bottom: 0;margin: 0 auto;z-index: 103;"] { display: none !important; }</style></head>
+<body>
+<div id="map" class="leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom" tabindex="0"><div class="leaflet-pane leaflet-map-pane" style="transform: translate3d(546px, -339px, 0px);"><div class="leaflet-pane leaflet-tile-pane"><div class="leaflet-layer " style="z-index: 1; opacity: 1;"><div class="leaflet-tile-container leaflet-zoom-animated" style="z-index: 19; transform: translate3d(0px, 0px, 0px) scale(1);"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(843px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(843px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(587px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1099px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(843px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(587px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1099px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(587px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1099px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(843px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(331px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1355px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(843px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(587px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1099px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(331px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1355px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(331px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1355px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(587px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1099px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(331px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1355px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(331px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1355px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(5).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(75px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(6).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1611px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(5).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(75px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(6).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1611px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(5).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(75px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(6).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1611px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673(5).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(75px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673(6).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1611px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(5).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(75px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(6).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1611px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(7).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-181px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(7).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-181px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(7).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-181px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/673(7).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-181px, -219px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(7).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-181px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(331px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(587px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(75px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(843px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-181px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(5).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1099px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(8).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-437px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(8).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-437px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(8).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-437px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/674(8).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-437px, 37px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(6).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-437px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(7).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1355px, 1061px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/676(9).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-693px, 549px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/677(9).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-693px, 805px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/675(9).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-693px, 293px, 0px); opacity: 1;"><img alt="" src="./350 km dla Cancer Fighters - Live_files/678(8).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-693px, 1061px, 0px); opacity: 1;"></div></div></div><div class="leaflet-pane leaflet-overlay-pane"><svg pointer-events="none" class="leaflet-zoom-animated" width="2250" height="1110" viewBox="-733 247 2250 1110" style="transform: translate3d(-733px, 247px, 0px);"><g><path class="leaflet-interactive" stroke="#3de07a" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="#3de07a" fill-opacity="0.85" fill-rule="evenodd" d="M0 0"></path></g></svg></div><div class="leaflet-pane leaflet-shadow-pane"></div><div class="leaflet-pane leaflet-marker-pane"><div class="leaflet-marker-icon bike-marker-wrap leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" style="margin-left: -24px; margin-top: -24px; width: 48px; height: 48px; opacity: 1; transform: translate3d(391px, 802px, 0px); z-index: 802;"><div class="bike-marker"><div class="bike-pulse"></div><div class="bike-pulse p2"></div><div class="bike-core"><span>D</span></div></div></div></div><div class="leaflet-pane leaflet-tooltip-pane"></div><div class="leaflet-pane leaflet-popup-pane"></div><div class="leaflet-proxy leaflet-zoom-animated" style="transform: translate3d(291644px, 173308px, 0px) scale(1024);"></div></div><div class="leaflet-control-container"><div class="leaflet-top leaflet-left"><div class="leaflet-control-zoom leaflet-bar leaflet-control"><a class="leaflet-control-zoom-in" href="https://dajczman.vercel.app/#" title="Zoom in" role="button" aria-label="Zoom in" aria-disabled="false"><span aria-hidden="true">+</span></a><a class="leaflet-control-zoom-out" href="https://dajczman.vercel.app/#" title="Zoom out" role="button" aria-label="Zoom out" aria-disabled="false"><span aria-hidden="true">−</span></a></div></div><div class="leaflet-top leaflet-right"></div><div class="leaflet-bottom leaflet-left"></div><div class="leaflet-bottom leaflet-right"><div class="leaflet-control-attribution leaflet-control">© OpenStreetMap © CARTO</div></div></div></div>
+
+<div id="header" class="panel">
+  <div class="title-row">
+    <div class="ribbon">@</div>
+    <h1>350 km dla Cancer Fighters</h1>
+  </div>
+  <p>Brokies</p>
+  <div class="progress-row">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 26.289%;"></div></div>
+    <div class="progress-val"><span id="progressKm" class="flash">92.01</span><small> / 350 km</small></div>
+  </div>
+</div>
+
+<div id="status" class="panel">
+  <div class="dot" id="statusDot"></div>
+  <span id="statusText">Live</span>
+</div>
+
+<div id="donate" class="donate panel">
+  <button type="button" class="donate-toggle" id="donateToggle" aria-expanded="true" aria-controls="donateBody" aria-label="Zwiń panel zbiórki" title="Pokaż lub schowaj panel zbiórki">
+    <span class="chev" aria-hidden="true">▾</span>
+    <span class="donate-toggle-text">Zbiórka</span>
+  </button>
+  <div id="donateBody" class="donate-body" role="region" aria-label="Siepomaga i nick do przelewu">
+    <div class="donate-ribbon">Wsparcie</div>
+    <h2>Wesprzyj zbiórkę</h2>
+    <a class="donate-cta" href="https://www.siepomaga.pl/latwogang" target="_blank" rel="noopener noreferrer" title="Siepomaga – zbiórka łatwogang">
+      Otwórz stronę zbiórki<small>siepomaga.pl / latwogang</small>
+    </a>
+    <p class="donate-hint">W polu <kbd>donate</kbd> wpisz nick:</p>
+    <span class="nick" id="donateNick" title="Kliknij, aby skopiowac BROKIES">BROKIES</span>
+  </div>
+</div>
+
+<div id="stats">
+  <div class="stat panel">
+    <div class="label">Predkosc</div>
+    <div class="value" id="speedVal">0.3<span class="unit">km/h</span></div>
+  </div>
+  <div class="stat panel">
+    <div class="label">Przejechane</div>
+    <div class="value flash" id="distVal">92.01<span class="unit">km</span></div>
+  </div>
+  <div class="stat panel">
+    <div class="label">Czas na trasie</div>
+    <div class="value" id="timeVal">08:35:43</div>
+  </div>
+  <div class="stat panel">
+    <div class="label">Pozostalo</div>
+    <div class="value flash" id="remVal">257.99<span class="unit">km</span></div>
+  </div>
+</div>
+
+<div id="side">
+  <div class="chip panel">Bateria: <strong id="batVal">70%</strong></div>
+  <div class="chip panel">Dokladnosc: <strong id="accVal">2 m</strong></div>
+  <div class="chip panel">Wysokosc: <strong id="altVal">122 m</strong></div>
+  <div class="chip panel">Ostatni update: <strong id="updVal">7 min temu</strong></div>
+</div>
+
+<div id="waiting" class="panel hidden">
+  <h2>Czekamy na start</h2>
+  <p>Za chwile zobaczysz lokalizacje rowerzysty na mapie.</p>
+</div>
+
+<div id="breakOverlay" class="hidden">
+  <div class="box panel">
+    <h2>Przerwa</h2>
+    <p>Transmisja lokalizacji jest tymczasowo wstrzymana. Wracamy wkrotce — odswiez strone za chwile.</p>
+  </div>
+</div>
+
+<script>
+  const API_HOST = 'brokies.frizkstudios.com';
+  const API = (location.host === API_HOST) ? location.origin : ('https://' + API_HOST);
+  (function nickCopy() {
+    var el = document.getElementById('donateNick');
+    if (!el) return;
+    el.addEventListener('click', function () {
+      if (!navigator.clipboard) return;
+      var o = el.textContent;
+      navigator.clipboard.writeText('BROKIES').then(function () {
+        el.textContent = 'Skopiowano';
+        el.classList.add('nick-copied');
+        setTimeout(function () { el.textContent = o; el.classList.remove('nick-copied'); }, 1600);
+      });
+    });
+  })();
+  (function donateCollapse() {
+    var root = document.getElementById('donate');
+    var btn = document.getElementById('donateToggle');
+    if (!root || !btn) return;
+    var key = 'brokies-donate-collapsed';
+    var mql = window.matchMedia('(max-width: 720px)');
+    function setCollapsed(c) {
+      root.classList.toggle('collapsed', c);
+      btn.setAttribute('aria-expanded', c ? 'false' : 'true');
+      btn.setAttribute('aria-label', c ? 'Rozwiń panel zbiórki Siepomaga' : 'Zwiń panel zbiórki');
+      var chev = btn.querySelector('.chev');
+      if (chev) chev.textContent = c ? '▸' : '▾';
+      try { localStorage.setItem(key, c ? '1' : '0'); } catch (e) { /* */ }
+    }
+    var v = null;
+    try { v = localStorage.getItem(key); } catch (e) { /* */ }
+    if (v === '1' || v === '0') setCollapsed(v === '1');
+    else setCollapsed(mql.matches);
+    btn.addEventListener('click', function () { setCollapsed(!root.classList.contains('collapsed')); });
+  })();
+  const GOAL = 350;
+  const POLL_MS = 3000;
+
+  const $ = (id) => document.getElementById(id);
+
+  const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([52.2297, 21.0122], 6);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19,
+  }).addTo(map);
+  map.attributionControl.setPrefix(false);
+
+  const bikeIcon = L.divIcon({
+    className: 'bike-marker-wrap',
+    html: '<div class="bike-marker"><div class="bike-pulse"></div><div class="bike-pulse p2"></div><div class="bike-core"><span>D</span></div></div>',
+    iconSize: [48, 48], iconAnchor: [24, 24],
+  });
+  const marker = L.marker([52.2297, 21.0122], { icon: bikeIcon, opacity: 0 }).addTo(map);
+  let startMarker = null;
+
+  let firstFix = true;
+  let firstFixAt = null;
+  let lastKm = 0;
+  let lastData = null;
+  let animFrame = null;
+  let didCenterOnOfficialStart = false;
+
+  function smoothMove(to) {
+    const from = marker.getLatLng();
+    const duration = 1400;
+    const t0 = performance.now();
+    cancelAnimationFrame(animFrame);
+    function step(now) {
+      const k = Math.min(1, (now - t0) / duration);
+      const e = 1 - Math.pow(1 - k, 3);
+      const lat = from.lat + (to[0] - from.lat) * e;
+      const lon = from.lng + (to[1] - from.lng) * e;
+      marker.setLatLng([lat, lon]);
+      if (k < 1) animFrame = requestAnimationFrame(step);
+    }
+    animFrame = requestAnimationFrame(step);
+  }
+
+  function fmtTime(ms) {
+    if (!ms || ms < 0) return '00:00:00';
+    const s = Math.floor(ms / 1000);
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const r = String(s % 60).padStart(2, '0');
+    return h + ':' + m + ':' + r;
+  }
+
+  function flash(el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+
+  function timeAgo(ts) {
+    const d = Math.floor((Date.now() - ts) / 1000);
+    if (d < 2) return 'teraz';
+    if (d < 60) return d + ' s temu';
+    if (d < 3600) return Math.floor(d / 60) + ' min temu';
+    return Math.floor(d / 3600) + ' h temu';
+  }
+
+  function setStatus(ok) {
+    $('statusDot').classList.toggle('offline', !ok);
+    $('statusText').textContent = ok ? 'Live' : 'Brak polaczenia';
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch(API + '/stats', { cache: 'no-store' });
+      if (res.status === 503) {
+        let j = {};
+        try { j = await res.json(); } catch (e1) { /* */ }
+        if (j.sitePaused) {
+          $('breakOverlay').classList.remove('hidden');
+          $('statusDot').classList.remove('offline');
+          $('statusDot').classList.add('paused');
+          $('statusText').textContent = 'Przerwa';
+          $('waiting').classList.add('hidden');
+          marker.setOpacity(0);
+          return;
+        }
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      $('breakOverlay').classList.add('hidden');
+      $('statusDot').classList.remove('paused');
+      const data = await res.json();
+      lastData = data;
+      apply(data);
+      setStatus(true);
+    } catch (e) {
+      $('breakOverlay').classList.add('hidden');
+      $('statusDot').classList.remove('paused');
+      setStatus(false);
+    }
+  }
+
+  function ensureStartMarker(s) {
+    if (!s || !isFinite(s.lat) || !isFinite(s.lon)) return;
+    const pos = [s.lat, s.lon];
+    if (startMarker) {
+      startMarker.setLatLng(pos);
+    } else {
+      startMarker = L.circleMarker(pos, { radius: 8, color: '#3de07a', fillColor: '#3de07a', fillOpacity: 0.85, weight: 2 })
+        .addTo(map)
+        .bindTooltip('Start wyzwania', { direction: 'top' });
+    }
+  }
+
+  function apply(data) {
+    const c = data.current || {};
+    firstFixAt = data.firstFixAt || firstFixAt;
+    if (data.start) ensureStartMarker(data.start);
+    if (data.start && !c.received && !didCenterOnOfficialStart) {
+      map.setView([data.start.lat, data.start.lon], 14, { animate: true });
+      didCenterOnOfficialStart = true;
+    }
+
+    if (!c.received) {
+      $('waiting').classList.remove('hidden');
+      marker.setOpacity(0);
+    } else {
+      $('waiting').classList.add('hidden');
+      marker.setOpacity(1);
+    }
+
+    if (c.received && isFinite(c.lat) && isFinite(c.lon)) {
+      const pos = [c.lat, c.lon];
+      if (firstFix) {
+        marker.setLatLng(pos);
+        if (data.start) {
+          const a = L.latLng(data.start.lat, data.start.lon);
+          const b = L.latLng(c.lat, c.lon);
+          map.fitBounds(L.latLngBounds(a, b), { padding: [56, 56], maxZoom: 16, animate: true });
+        } else {
+          map.setView(pos, 15, { animate: true });
+        }
+        if (!data.start) {
+          ensureStartMarker({ lat: pos[0], lon: pos[1] });
+        }
+        firstFix = false;
+      } else {
+        smoothMove(pos);
+        map.panTo(pos, { animate: true, duration: 1.2 });
+      }
+    }
+
+    const km = data.totalKm || 0;
+    const pct = Math.min(100, (km / GOAL) * 100);
+    $('progressFill').style.width = pct + '%';
+    $('progressKm').textContent = km.toFixed(2);
+    $('distVal').innerHTML = km.toFixed(2) + '<span class="unit">km</span>';
+    $('remVal').innerHTML = Math.max(0, GOAL - km).toFixed(2) + '<span class="unit">km</span>';
+    if (Math.abs(km - lastKm) > 0.01) {
+      flash($('distVal')); flash($('progressKm')); flash($('remVal'));
+      lastKm = km;
+    }
+
+    const spd = c.speed || 0;
+    $('speedVal').innerHTML = spd.toFixed(1) + '<span class="unit">km/h</span>';
+    $('batVal').textContent = c.battery != null ? (Math.round(c.battery) + '%') : '-';
+    $('accVal').textContent = c.accuracy ? (Math.round(c.accuracy) + ' m') : '-';
+    $('altVal').innerHTML = c.altitude ? (Math.round(c.altitude) + ' m') : '- m';
+    $('updVal').textContent = c.timestamp && c.received ? timeAgo(c.timestamp) : '-';
+  }
+
+  function tickClock() {
+    if (firstFixAt) $('timeVal').textContent = fmtTime(Date.now() - firstFixAt);
+    if (lastData && lastData.current && lastData.current.timestamp && lastData.current.received) {
+      $('updVal').textContent = timeAgo(lastData.current.timestamp);
+    }
+  }
+
+  poll();
+  setInterval(poll, POLL_MS);
+  setInterval(tickClock, 1000);
+</script>
+
+
+</body></html>
